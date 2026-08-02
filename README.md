@@ -225,3 +225,4 @@ All endpoints return `{ ok: boolean, data?, error?, message? }`.
 - **Weighted-average cost PnL.** Realized PnL uses `sellRevenue - (totalBuyCost * sellVolume / buyVolume)`. New buys recalculate the cost basis retroactively (not FIFO).
 - **No retry within a tick.** A single network error or 5xx from dex-trade fails the tick. Recovery happens on the next tick (15 s later).
 - **Rate limiter is not atomic.** Concurrent async calls can both pass the check before either updates the timestamp. Safe in practice (tick loop is sequential) but a `/api/stop` during a tick could briefly exceed limits.
+# Test Hermes PR
