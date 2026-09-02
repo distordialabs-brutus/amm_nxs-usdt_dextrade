@@ -30,7 +30,7 @@ Required environment variables (`bot/.env`):
 | Variable | Description |
 |----------|-------------|
 | `DEXTRADE_LOGIN_TOKEN` | Login token from dex-trade.com API profile |
-| `DEXTRADE_SECRET` | HMAC secret from dex-trade.com API profile |
+| `DEXTRADE_SECRET` | API signing secret from the dex-trade.com API profile |
 | `BOT_PORT` | HTTP port (default `17442`) |
 | `LOG_LEVEL` | `debug` / `info` / `warn` / `error` (default `info`) |
 
@@ -186,7 +186,7 @@ All endpoints return `{ ok: boolean, data?, error?, message? }`.
 │   ├── server.js                 # Express HTTP API
 │   ├── state.js                  # In-memory shared state
 │   ├── logger.js                 # In-memory log buffer (500 entries)
-│   ├── dextrade.js               # dex-trade.com API client (rate-limited, HMAC-signed)
+│   ├── dextrade.js               # dex-trade.com API client (rate-limited, API-signed)
 │   ├── strategies/
 │   │   ├── index.js              # Strategy registry
 │   │   ├── constantProduct.js    # x*y=k AMM strategy
