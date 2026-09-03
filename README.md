@@ -12,6 +12,11 @@ Automated Market Maker dashboard and trading bot for the **NXS/USDT** pair on [d
 └─────────────────────┘  start/stop/rebal └───────────────────────┘         └──────────────┘
 ```
 
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the current/target boundary,
+[`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for ordered release gates, and
+[`DEVELOPMENT_REVIEW_2026-09-03.md`](DEVELOPMENT_REVIEW_2026-09-03.md) for the
+latest independent evidence.
+
 ---
 
 ## Quick start
