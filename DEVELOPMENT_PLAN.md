@@ -2,9 +2,19 @@
 
 This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Each step must leave the frontend build and bot syntax green and add automated regression coverage.
 
-## Current status — independent review 2026-09-03
+## Current status — independent review 2026-09-07
 
-No source development occurred after 2026-09-02 16:22:20 +0200. Build and syntax pass, but no automated test command exists and financial correctness is not release-ready.
+No source development occurred since the preceding review. Historical build/syntax passes are not fresh verification: this run's combined execution was approval-denied and not retried. No automated test contract exists, and financial correctness is not release-ready. Source inspection adds explicit cancellation-result, malformed-enumeration, stale-balance and ambiguous-placement gates; see [current review](DEVELOPMENT_REVIEW_2026-09-07.md).
+
+### First repair batch: make uncertainty stop replacement trading
+
+- Extract controller construction from server/listener startup so mocked adapter tests cannot reach the exchange.
+- Make cancellation return a result for every requested ID. Partial failure or timeout leaves unresolved orders held; neither stop nor rebalance may fabricate cancellation.
+- Validate open-order schemas and completeness before reconciliation. An empty or malformed result must not book full fills.
+- Require a successful fresh balance snapshot for each placement batch.
+- Validate placement response IDs. A missing ID or timeout after acceptance enters `outcome_unknown`; resolve through attributable exchange evidence, never blind resubmission.
+- Acceptance: injected partial cancellation, malformed enumeration, stale balances, missing IDs, accepted-but-timed-out placement, and stop/placement races cause zero unauthorized replacement orders and zero fabricated fill/PnL entries. Assert operator-visible held state and explicit recovery behavior.
+- Preserve the in-memory state rule. Restart must reconstruct from exchange evidence or remain held for operator disposition; any durable-store proposal needs a separate architecture decision.
 
 | Priority | Step | Exit criterion | Status |
 |---|---|---|---|

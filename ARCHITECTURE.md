@@ -50,4 +50,12 @@ Invariants 5–7 are target requirements, not satisfied behavior as of the curre
 
 The production build and JavaScript syntax checks are necessary but insufficient. Before unattended or meaningful-capital use, the repository needs fixture-backed exchange-adapter tests, authoritative fill reconciliation, restart adoption/hold behavior, fee-aware PnL tests, serialized rate limiting and failure-injection tests for timeouts, partial responses and cancellation races.
 
-See [`DEVELOPMENT_REVIEW_2026-09-03.md`](DEVELOPMENT_REVIEW_2026-09-03.md) for current evidence and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.
+## Evidence-gated order lifecycle — review 2026-09-07
+
+Cancellation must return per-order outcomes: `confirmed_cancelled`, `still_open`, or `outcome_unknown`. Rebalance and stop may not mark all requested orders cancelled from a best-effort batch result. Unresolved cancellation/placement disables replacement risk and remains visible to the operator. The controller owns that gate; logging an adapter error is not sufficient.
+
+Read adapters must reject malformed envelopes and incomplete enumeration. A missing order is neither a full fill nor proof of cancellation. Balance freshness must be explicit: a failed refresh cannot authorize placement using cached values. Placement success requires a validated canonical exchange ID; ambiguous acceptance holds rather than retries.
+
+State remains in memory under the existing no-database constraint. Restart therefore begins in a reconciliation hold until exchange evidence reconstructs owned orders and resolves liabilities, or an operator explicitly disposes unresolved state. If attribution cannot be proven, unattended restart is unsupported; do not silently add persistent storage without an architecture decision.
+
+See [`DEVELOPMENT_REVIEW_2026-09-07.md`](DEVELOPMENT_REVIEW_2026-09-07.md) for current source findings and verification limits and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.
