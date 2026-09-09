@@ -32,16 +32,17 @@ The frontend is an operator console, not the source of trading truth. The bot ow
 - dex-trade is authoritative for order acceptance, cancellation, open/closed state, fills, execution quantities/prices, fees and account balances.
 - `state.managedOrders` and `state.pnl` are process-local projections, not authoritative records. They are lost on restart.
 - Every open or outcome-unknown order remains potential inventory exposure until exact exchange evidence resolves it. A timeout, malformed response, failed scan or bounded absence is not a terminal outcome.
+- Private request references are currently millisecond timestamps created immediately before each call. They are not durable intents, are not serialized for uniqueness, and have no locally proven idempotency or direct-recovery contract.
 
 ## Invariants
 
 1. At most one scheduled trading tick executes at a time (`tickInProgress`) — **implemented for ticks only**.
 2. Only the dex-trade adapter communicates with the exchange — **implemented**.
 3. A strategy computes targets but never performs I/O or mutates shared state — **implemented**.
-4. Every placement batch uses a fresh, schema-valid balance and market snapshot and enforces exchange precision/minimums — **not implemented**; balance and order-book failures can be absorbed.
-5. An order is terminal only from authoritative exchange evidence; absence from an open-order list is not proof of a full fill or cancellation — **not implemented**.
+4. Every placement batch uses a fresh, schema-valid balance and market snapshot and exchange-provided precision/minimum metadata — **not implemented**; balance and order-book failures can be absorbed and precision/minimums are hard-coded.
+5. An order is terminal only from authoritative complete, paginated exchange evidence; absence from an open-order list is not proof of a full fill or cancellation — **not implemented**.
 6. Realized PnL uses authoritative fill quantity, execution price and fees, not submitted-order values — **not implemented**.
-7. Cancellation and placement have per-order identities and explicit `submitted`, `confirmed`, `outcome_unknown` and held transitions; ambiguous outcomes prohibit replacement risk — **not implemented**.
+7. Cancellation and placement have durable pre-submit intent, per-order identities and explicit `submitted`, `confirmed`, `outcome_unknown` and held transitions; ambiguous outcomes prohibit replacement risk — **not implemented**.
 8. Control-plane requests cannot bypass exchange serialization or race cancellation/rebalance transitions — **not implemented**.
 9. Mutating HTTP routes authenticate the intended wallet module and reject untrusted origins and out-of-schema strategy values — **not implemented**.
 10. Private signing follows the exchange contract in `bot/dextrade.js`: SHA-256 over recursively sorted body values followed by the secret. It is not HMAC — **implemented and fixture-probed locally**.
@@ -52,7 +53,7 @@ The required lifecycle is:
 
 ```text
 validate control request and fresh read evidence
-  -> persist/in-memory-register placement intent
+  -> durably persist placement intent and immutable request reference
   -> submit once with an attributable request identity
   -> record canonical exchange order identity
   -> resolve ambiguous outcomes from authoritative exchange evidence
@@ -60,11 +61,11 @@ validate control request and fresh read evidence
   -> permit replacement only after exposure is resolved
 ```
 
-Cancellation must return one result per requested ID: `confirmed_cancelled`, `still_open`, or `outcome_unknown`. Rebalance and stop may not mark all requested orders cancelled from a best-effort batch result. A placement timeout or missing ID enters `outcome_unknown`, never blind resubmission. The controller, not logging in the adapter, owns the hold gate.
+Cancellation must return one result per requested ID: `confirmed_cancelled`, `still_open`, or `outcome_unknown`. Rebalance and stop may not mark all requested orders cancelled from a best-effort batch result. A placement timeout or missing ID enters `outcome_unknown`, aborts the remaining placement batch and reserves the unresolved exposure; it never permits blind resubmission. The controller, not logging in the adapter, owns the hold gate.
 
-Read adapters must reject malformed envelopes, malformed records and incomplete pagination. Open-order transport/schema failure must abort the trading transition, not merely skip reconciliation and continue to place. Missing orders require exact closed-order/fill evidence. A failed balance refresh cannot authorize cached balances. Missing order-book evidence must not silently substitute last-trade price for a market-making placement decision.
+Read adapters must reject malformed envelopes, malformed records and incomplete pagination. `getOpenOrders()` currently has no pagination arguments or completeness result, while reconciliation treats its returned set as complete. Open-order transport/schema/page-budget failure must abort the trading transition, not merely skip reconciliation and continue to place. Missing orders require exact closed-order/fill evidence. A failed balance refresh cannot authorize cached balances. Missing, inverted or stale order-book evidence must not silently substitute last-trade price for a market-making placement decision.
 
-State remains in memory under the existing no-database constraint. Startup therefore enters reconciliation hold until exchange evidence reconstructs attributable live orders and unresolved exposure, or an operator explicitly disposes it. If attribution cannot be proved, unattended restart is unsupported. Persistent storage requires a separate architecture decision.
+Ordinary dashboard state can remain in memory under the existing no-database constraint, but an in-memory placement intent cannot survive a crash after remote acceptance. Before unattended trading, the architecture must either approve a minimal durable intent journal or prove that the exchange provides a unique idempotent client reference and direct authoritative lookup sufficient to recover every ambiguous submission. Startup remains held until that evidence reconstructs attributable live orders and unresolved exposure, or an operator explicitly disposes it. Without one of those recovery mechanisms, unattended restart is unsupported.
 
 ## Control and concurrency boundary
 
@@ -79,12 +80,15 @@ Frontend `min`, `max` and `step` fields are presentation hints only. The server 
 - Balance refresh failure is logged and absorbed (`bot/index.js:75-90`); placement can use cached values.
 - Order-book failure is logged and `last` price is used as the mid (`bot/index.js:51-71`), which can generate stale/crossing quotes.
 - Cancellation results are discarded and all requested orders are marked cancelled (`bot/index.js:161-166`, `295-310`).
-- Placement accepts a missing identity as the string `undefined`; timeouts have no durable/held outcome (`bot/index.js:208-230`).
+- Placement accepts a missing identity as the string `undefined`; timeouts have no durable/held outcome, do not reserve unknown exposure and do not stop later batch placements (`bot/index.js:208-230`).
+- `getOpenOrders()` supplies no pair/page/cursor or completeness evidence (`bot/dextrade.js:156-165`); `getOrderHistory()` is unused.
+- Millisecond `request_id` values are neither durable nor serialized and can collide across concurrent private callers (`bot/dextrade.js:114-176`).
+- Price/volume precision and the 5 USDT minimum are hard-coded; admission checks use raw volume before transmitted four-decimal rounding.
 - PnL is aggregate weighted-average submitted value and ignores fees.
 - Shared rate-limit timestamps are not serialized across concurrent callers (`bot/dextrade.js:11-22`).
 - No automated test script or CI workflow exists. Build and syntax checks do not establish trading correctness.
-- The 2026-09-08 dependency audit reports two root production findings and six bot production findings; remediation needs compatibility and behavior gates.
+- The 2026-09-09 `npm audit --omit=dev` reports two root package findings and six bot package findings; remediation needs compatibility and behavior gates.
 
 Before unattended or meaningful-capital use, all P0 gates in [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) must pass, followed by P1 money/concurrency review and target dex-trade sandbox/test-account evidence. Local mocks establish containment logic only; they do not establish exchange pagination, finality, fee, cancellation or timeout-after-acceptance semantics.
 
-See [`DEVELOPMENT_REVIEW_2026-09-08.md`](DEVELOPMENT_REVIEW_2026-09-08.md) for the current findings and executed evidence and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.
+See [`DEVELOPMENT_REVIEW_2026-09-09.md`](DEVELOPMENT_REVIEW_2026-09-09.md) for the current findings and executed evidence and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.
