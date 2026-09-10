@@ -87,8 +87,8 @@ Frontend `min`, `max` and `step` fields are presentation hints only. The server 
 - PnL is aggregate weighted-average submitted value and ignores fees.
 - Shared rate-limit timestamps are not serialized across concurrent callers (`bot/dextrade.js:11-22`).
 - No automated test script or CI workflow exists. Build and syntax checks do not establish trading correctness.
-- The 2026-09-09 `npm audit --omit=dev` reports two root package findings and six bot package findings; remediation needs compatibility and behavior gates.
+- The fresh 2026-09-10 `npm audit --omit=dev` reports two root package findings and six bot package findings, unchanged in count from 2026-09-09; remediation needs compatibility and behavior gates.
 
 Before unattended or meaningful-capital use, all P0 gates in [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) must pass, followed by P1 money/concurrency review and target dex-trade sandbox/test-account evidence. Local mocks establish containment logic only; they do not establish exchange pagination, finality, fee, cancellation or timeout-after-acceptance semantics.
 
-See [`DEVELOPMENT_REVIEW_2026-09-09.md`](DEVELOPMENT_REVIEW_2026-09-09.md) for the current findings and executed evidence and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.
+See [`DEVELOPMENT_REVIEW_2026-09-10.md`](DEVELOPMENT_REVIEW_2026-09-10.md) for the current findings and executed evidence and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.

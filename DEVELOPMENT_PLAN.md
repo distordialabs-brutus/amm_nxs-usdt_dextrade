@@ -2,9 +2,9 @@
 
 This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation step must keep the frontend build and bot syntax green and add automated regression coverage.
 
-## Current status — independent review 2026-09-09
+## Current status — independent review 2026-09-10
 
-Reviewed HEAD is `f4d68934a1974a71c712229d6015af6abcaa1fed`, equal to `origin/main` after fetch. The only commit since the prior review's reviewed base is the 2026-09-08 documentation publication; there is no executable source or dependency-manifest delta. The `bot/` tree remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. Frontend build and all bot syntax checks pass, audits fail, and no repository test command or CI workflow exists. The current architecture also lacks a durable or exchange-idempotent recovery protocol and complete open-order enumeration evidence. See the [current review](DEVELOPMENT_REVIEW_2026-09-09.md).
+Reviewed pre-publication HEAD is `10db348c947afcb508ea533ddf246603ed56beff`, equal to `origin/main` at review start. The only commit since the prior dated review's source head `f4d68934a1974a71c712229d6015af6abcaa1fed` is the 2026-09-09 documentation publication; there is no executable source or dependency-manifest delta. The `bot/` tree remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The fresh frontend build and all bot syntax checks pass; audits still fail with two root and six bot vulnerable packages; no repository test command or CI workflow exists. The architecture still lacks a durable or exchange-idempotent recovery protocol and complete open-order enumeration evidence. See the [current review](DEVELOPMENT_REVIEW_2026-09-10.md).
 
 ## Ordered repair sequence
 
