@@ -2,9 +2,19 @@
 
 This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation step must keep the frontend build and bot syntax green and add automated regression coverage.
 
-## Current status — independent review 2026-09-10
+## Current status — independent review 2026-09-15
 
-Reviewed pre-publication HEAD is `10db348c947afcb508ea533ddf246603ed56beff`, equal to `origin/main` at review start. The only commit since the prior dated review's source head `f4d68934a1974a71c712229d6015af6abcaa1fed` is the 2026-09-09 documentation publication; there is no executable source or dependency-manifest delta. The `bot/` tree remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The fresh frontend build and all bot syntax checks pass; audits still fail with two root and six bot vulnerable packages; no repository test command or CI workflow exists. The architecture still lacks a durable or exchange-idempotent recovery protocol and complete open-order enumeration evidence. See the [current review](DEVELOPMENT_REVIEW_2026-09-10.md).
+Source HEAD is `21c575206091cfb0d7117f1629a58f625d9909a9`, equal to fetched `origin/main`, with no commits after the 2026-09-12 documentation publication. There is no executable or dependency-manifest delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The fresh frontend build and nine bot syntax checks pass; production audits fail with two vulnerable root package entries and six bot package entries; no repository test command or CI workflow exists. Every P0 remains open. See the [current review](DEVELOPMENT_REVIEW_2026-09-15.md).
+
+## Next repair batch — containment and executable seam
+
+Keep this batch free of live exchange use and financial-state migration:
+
+1. Make `bot/index.js` a composition shell and extract a controller factory whose imports have no listener, timer, signal, credential or network side effect. Inject exchange, scheduler, clock and ID dependencies.
+2. Add parsed startup policy for `TRADING_ENABLED=false` by default, exact allowed origins, a non-bundled control capability, and hard order/notional/inventory ceilings. Route every mutation through one middleware that rejects missing policy before calling the controller.
+3. Add one root test command using `node:test`, fake adapters and a network-deny guard. Cover unauthenticated/untrusted mutations, unknown and out-of-range strategy fields, missing caps, import safety and default-disabled start. Add CI for clean installs, that command, the production build, syntax, audit policy and whitespace checks.
+
+**Batch exit:** from a clean/default environment, imports open no port and perform no network access; all mutation requests return 4xx/503 with zero controller or exchange calls; only explicit bounded test configuration reaches a fake controller; the one root gate passes without credentials. Do not begin cancellation or placement changes until this seam and gate are green.
 
 ## Ordered repair sequence
 

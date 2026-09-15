@@ -15,6 +15,10 @@ Loopback Express control/status API (:17442)
 
 The frontend is an operator console, not the source of trading truth. The bot owns strategy selection, order placement, cancellation, reconciliation and the in-memory status snapshot. NXS is traded as an exchange asset here; this implementation does not submit transactions through the Nexus node API.
 
+### Current source snapshot — 2026-09-15
+
+Repository HEAD and fetched `origin/main` are `21c575206091cfb0d7117f1629a58f625d9909a9`. There are no commits after the 2026-09-12 documentation review. The executable trees remain `bot/` = `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` = `eac7280ff4119b667d85fa2be66d3062fc35de58`, identical to that review's pre-publication source. The P0 release blockers below therefore remain open; see [`DEVELOPMENT_REVIEW_2026-09-15.md`](DEVELOPMENT_REVIEW_2026-09-15.md) for fresh local evidence.
+
 `bot/index.js` binds the API to `127.0.0.1`, which reduces network exposure but is not authorization. `bot/server.js` currently returns `Access-Control-Allow-Origin: *` and has no control token. The server therefore grants arbitrary origins access to start, stop, configuration and rebalance routes; actual webpage reachability also depends on the browser's private-network and mixed-content policies, which were not exercised. Do not rely on those browser policies as server authorization. The loopback boundary must not be widened, and mutating routes require an authenticated, origin-restricted control boundary before release.
 
 ## Components
@@ -25,6 +29,24 @@ The frontend is an operator console, not the source of trading truth. The bot ow
 - `bot/state.js`: ephemeral process state; restart loses managed-order and PnL history.
 - `bot/strategies/`: pure target-order generation behind a common strategy contract.
 - `bot/dextrade.js`: all exchange transport, signing and rate limiting.
+
+## Target clean architecture
+
+Keep policy independent of Express, timers, environment variables and axios:
+
+```text
+process composition shell (env, listener, timers, signals)
+  -> HTTP and scheduler adapters
+  -> application controller / one serialized transition queue
+  -> pure order-lifecycle, exposure and exact-money domain
+  -> ports: exchange evidence + durable intent journal + clock/ID source
+  <- dex-trade and journal adapters implement those ports
+  -> read-only status projection
+```
+
+Dependencies point inward. `bot/index.js` must become a composition shell rather than owning process startup, controller policy, exchange calls and mutable financial transitions in one module. Domain transitions accept typed evidence and return explicit effects; only adapters perform I/O. The controller is the sole writer of lifecycle state and exposure reservations. The dashboard consumes projections and cannot authorize or infer financial outcomes.
+
+Construction must inject the exchange, journal, clock, request-ID source and scheduler. Importing controller, server or domain modules must not open a listener, install signal handlers, load production credentials or reach the network. Keep strategy calculations pure, but validate their outputs and all exposure policy at the application boundary before creating an intent.
 
 ## Money and authority model
 
@@ -87,8 +109,8 @@ Frontend `min`, `max` and `step` fields are presentation hints only. The server 
 - PnL is aggregate weighted-average submitted value and ignores fees.
 - Shared rate-limit timestamps are not serialized across concurrent callers (`bot/dextrade.js:11-22`).
 - No automated test script or CI workflow exists. Build and syntax checks do not establish trading correctness.
-- The fresh 2026-09-10 `npm audit --omit=dev` reports two root package findings and six bot package findings, unchanged in count from 2026-09-09; remediation needs compatibility and behavior gates.
+- Fresh 2026-09-15 production audits fail with two vulnerable root package entries (`1` high, `1` low) and six bot package entries (`3` high, `2` moderate, `1` low); remediation needs compatibility and behavior gates.
 
 Before unattended or meaningful-capital use, all P0 gates in [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) must pass, followed by P1 money/concurrency review and target dex-trade sandbox/test-account evidence. Local mocks establish containment logic only; they do not establish exchange pagination, finality, fee, cancellation or timeout-after-acceptance semantics.
 
-See [`DEVELOPMENT_REVIEW_2026-09-10.md`](DEVELOPMENT_REVIEW_2026-09-10.md) for the current findings and executed evidence and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order.
+See [`DEVELOPMENT_REVIEW_2026-09-15.md`](DEVELOPMENT_REVIEW_2026-09-15.md) for the current findings and executed evidence, [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order, and [`ARCHITECTURE_ADDENDUM_2026-09-12.md`](ARCHITECTURE_ADDENDUM_2026-09-12.md) for the unresolved durable-intent versus proven exchange-idempotency decision.
