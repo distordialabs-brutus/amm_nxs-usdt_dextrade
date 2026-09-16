@@ -2,9 +2,9 @@
 
 This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation step must keep the frontend build and bot syntax green and add automated regression coverage.
 
-## Current status — independent review 2026-09-15
+## Current status — independent review 2026-09-16
 
-Source HEAD is `21c575206091cfb0d7117f1629a58f625d9909a9`, equal to fetched `origin/main`, with no commits after the 2026-09-12 documentation publication. There is no executable or dependency-manifest delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The fresh frontend build and nine bot syntax checks pass; production audits fail with two vulnerable root package entries and six bot package entries; no repository test command or CI workflow exists. Every P0 remains open. See the [current review](DEVELOPMENT_REVIEW_2026-09-15.md).
+Source HEAD is `01038ec26f8e19bb11e4eb11a7b8c1e1a2708257`, equal to freshly fetched `origin/main`. The only delta from the 2026-09-15 review baseline is that review's three documentation files. There is no executable or dependency-manifest delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The frontend build, nine bot syntax checks and direct dependency-tree checks pass; production audits still fail with two vulnerable root package entries and six bot package entries; both packages still lack a test script and no CI workflow is tracked. Every P0 remains open. See the [current review](DEVELOPMENT_REVIEW_2026-09-16.md).
 
 ## Next repair batch — containment and executable seam
 
@@ -15,6 +15,8 @@ Keep this batch free of live exchange use and financial-state migration:
 3. Add one root test command using `node:test`, fake adapters and a network-deny guard. Cover unauthenticated/untrusted mutations, unknown and out-of-range strategy fields, missing caps, import safety and default-disabled start. Add CI for clean installs, that command, the production build, syntax, audit policy and whitespace checks.
 
 **Batch exit:** from a clean/default environment, imports open no port and perform no network access; all mutation requests return 4xx/503 with zero controller or exchange calls; only explicit bounded test configuration reaches a fake controller; the one root gate passes without credentials. Do not begin cancellation or placement changes until this seam and gate are green.
+
+The 2026-09-16 temporary probes provide exact red fixtures to promote into the gate: importing `bot/index.js` attempted a listener, interval, two signal handlers and three exchange-adapter reads; all four attacker-origin mutation routes returned 200 and invoked the controller; and `numGrids=1000000` plus an unknown key was forwarded unchanged. Keep the fixture boundaries synthetic and network-denying. Do not copy loader interception into the target design; remove the import side effects instead.
 
 ## Ordered repair sequence
 
@@ -43,7 +45,7 @@ Keep this batch free of live exchange use and financial-state migration:
 - Introduce typed results for ticker/order book, balances, open orders and closed/fill history, including schema validation, timestamps, stable pair filtering and complete-pagination evidence.
 - Require fresh order-book and balance evidence before cancellation/placement. Do not fall back to last trade for quoting and do not reuse cached balances after refresh failure.
 - Treat transport errors, malformed envelopes/records and page-budget exhaustion as a held state that remains visible through status.
-- **Exit:** injected order-book, balance and open-order transport failures; malformed/empty-wrong-schema responses; inverted books; and incomplete/page-budget-exhausted scans produce zero cancellation, placement and fabricated PnL events and expose a reasoned hold.
+- **Exit:** injected order-book, balance and open-order transport failures; malformed/empty-wrong-schema responses; inverted books; and incomplete/page-budget-exhausted scans produce zero cancellation, placement and fabricated PnL events and expose a reasoned hold. In the captured regression, an empty open-order list must not turn four orders into fills or book `45 USDT` PnL, and two failed balance reads must not permit four stale-balance placements.
 
 ### 4. Make writes attributable and replacement-safe
 
@@ -51,7 +53,7 @@ Keep this batch free of live exchange use and financial-state migration:
 - Resolve the durability decision: add a minimal durable placement-intent journal, or prove that dex-trade supplies a unique idempotent client reference and direct lookup sufficient for crash recovery. An in-memory intent is not sufficient.
 - Freeze side, quantized price/volume, notional and request reference before submission. Require a validated canonical exchange ID after success; serialize reference generation and reject collisions.
 - A timeout, malformed response or missing ID becomes `outcome_unknown`, reserves the possible exposure and aborts the remaining placement batch. Resolve it by positive attributable exchange evidence before retry, replacement or operator disposition.
-- **Exit:** crash/fault injection before intent, after intent, after remote acceptance, before identity recording, during restart, on duplicate invocation and on partial cancellation proves exactly one attributable remote action, zero unauthorized later-batch/replacement orders and no terminal local state without exact evidence.
+- **Exit:** crash/fault injection before intent, after intent, after remote acceptance, before identity recording, during restart, on duplicate invocation and on partial cancellation proves exactly one attributable remote action, zero unauthorized later-batch/replacement orders and no terminal local state without exact evidence. The captured missing-ID regression must stop after the first ambiguous response rather than make four calls and collapse them into `managedOrders.undefined`; one successful result for three requested cancellations must leave two held rather than mark all three cancelled.
 
 ### 5. Serialize lifecycle transitions and stop safely
 
