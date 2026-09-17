@@ -2,19 +2,19 @@
 
 This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation step must keep the frontend build and bot syntax green and add automated regression coverage.
 
-## Current status — independent review 2026-09-16
+## Current status — independent review 2026-09-17
 
-Source HEAD is `01038ec26f8e19bb11e4eb11a7b8c1e1a2708257`, equal to freshly fetched `origin/main`. The only delta from the 2026-09-15 review baseline is that review's three documentation files. There is no executable or dependency-manifest delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The frontend build, nine bot syntax checks and direct dependency-tree checks pass; production audits still fail with two vulnerable root package entries and six bot package entries; both packages still lack a test script and no CI workflow is tracked. Every P0 remains open. See the [current review](DEVELOPMENT_REVIEW_2026-09-16.md).
+Source HEAD is `7017929848d4ddef4158d868e2cd4433db09416f`. Since the 2026-09-16 reviewed source (`01038ec26f8e19bb11e4eb11a7b8c1e1a2708257`), only that review's documentation was published. There is no executable, manifest or lockfile delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. A fresh build, nine syntax checks, dependency-tree checks and root-document links pass; both packages still lack a test script and no CI workflow is tracked. A fresh loopback-fake probe again accepted all four unauthenticated attacker-origin mutations and the million-grid/unknown-key configuration. The offline advisory lookup returned zero but cannot supersede the 2026-09-16 online failures because cache completeness was not established. Every P0 remains open. See the [current review](DEVELOPMENT_REVIEW_2026-09-17.md).
 
-## Next repair batch — containment and executable seam
+## Next repair batches — containment before order logic
 
-Keep this batch free of live exchange use and financial-state migration:
+Keep these batches free of live exchange use and financial-state migration:
 
-1. Make `bot/index.js` a composition shell and extract a controller factory whose imports have no listener, timer, signal, credential or network side effect. Inject exchange, scheduler, clock and ID dependencies.
-2. Add parsed startup policy for `TRADING_ENABLED=false` by default, exact allowed origins, a non-bundled control capability, and hard order/notional/inventory ceilings. Route every mutation through one middleware that rejects missing policy before calling the controller.
-3. Add one root test command using `node:test`, fake adapters and a network-deny guard. Cover unauthenticated/untrusted mutations, unknown and out-of-range strategy fields, missing caps, import safety and default-disabled start. Add CI for clean installs, that command, the production build, syntax, audit policy and whitespace checks.
+1. **Batch A — seam and gate.** Reduce `bot/index.js` to composition; add `bot/controller.js` and `bot/config.js`; update root/bot `package.json`; add `test/import-safety.test.js`, `test/network-deny.js` and `.github/workflows/ci.yml`. Inject exchange, scheduler, clock and ID dependencies. **Exit:** importing controller/server modules creates zero listener, timer, signal, credential or network effects, and one root `npm test` command runs from a clean checkout with external access denied.
+2. **Batch B — control policy.** Update `bot/server.js` and `src/App/Main.js` for independent `TRADING_ENABLED=false`, exact origin, non-bundled control capability, strict strategy schemas and hard order/notional/inventory ceilings; add `test/server.test.js`. **Exit:** every disabled, missing/wrong capability, untrusted-origin, unknown-field, fractional-count, million-grid or over-cap request returns 4xx/503 with zero controller/state/exchange calls; only bounded synthetic configuration reaches a fake controller.
+3. **Batch C — evidence and writes.** Update `bot/dextrade.js`, `bot/controller.js` and `bot/state.js`; add `bot/domain/orderLifecycle.js` and read/cancellation/placement fixtures. **Exit:** incomplete reads hold with zero writes/PnL, empty open orders cannot infer fills, every cancellation ID gets a typed result, and the first missing-ID/timeout placement retains unknown exposure and prevents later calls.
 
-**Batch exit:** from a clean/default environment, imports open no port and perform no network access; all mutation requests return 4xx/503 with zero controller or exchange calls; only explicit bounded test configuration reaches a fake controller; the one root gate passes without credentials. Do not begin cancellation or placement changes until this seam and gate are green.
+Do not begin restart durability or exact-fill PnL until Batches A-C are green. Then add `bot/journal.js` and crash/await-boundary fixtures to satisfy steps 5-7 below.
 
 The 2026-09-16 temporary probes provide exact red fixtures to promote into the gate: importing `bot/index.js` attempted a listener, interval, two signal handlers and three exchange-adapter reads; all four attacker-origin mutation routes returned 200 and invoked the controller; and `numGrids=1000000` plus an unknown key was forwarded unchanged. Keep the fixture boundaries synthetic and network-denying. Do not copy loader interception into the target design; remove the import side effects instead.
 

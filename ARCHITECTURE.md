@@ -15,9 +15,9 @@ Loopback Express control/status API (:17442)
 
 The frontend is an operator console, not the source of trading truth. The bot owns strategy selection, order placement, cancellation, reconciliation and the in-memory status snapshot. NXS is traded as an exchange asset here; this implementation does not submit transactions through the Nexus node API.
 
-### Current source snapshot — 2026-09-16
+### Current source snapshot — 2026-09-17
 
-Repository HEAD and freshly fetched `origin/main` are `01038ec26f8e19bb11e4eb11a7b8c1e1a2708257`. The only delta from the 2026-09-15 review baseline is that review's documentation publication. There is no executable or dependency-manifest delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. The P0 release blockers below therefore remain open. The 2026-09-16 review converted the prior blocked probes into executable isolated evidence; see [`DEVELOPMENT_REVIEW_2026-09-16.md`](DEVELOPMENT_REVIEW_2026-09-16.md).
+Repository HEAD is `7017929848d4ddef4158d868e2cd4433db09416f`. The only commit after the 2026-09-16 reviewed source HEAD (`01038ec26f8e19bb11e4eb11a7b8c1e1a2708257`) is that review's documentation publication. A path-limited diff confirms no executable, manifest or lockfile delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. Every P0 release blocker therefore remains open. Fresh offline verification and the re-executed control-boundary failure are recorded in [`DEVELOPMENT_REVIEW_2026-09-17.md`](DEVELOPMENT_REVIEW_2026-09-17.md).
 
 `bot/index.js` binds the API to `127.0.0.1`, which reduces network exposure but is not authorization. `bot/server.js` currently returns `Access-Control-Allow-Origin: *` and has no control token. The server therefore grants arbitrary origins access to start, stop, configuration and rebalance routes; actual webpage reachability also depends on the browser's private-network and mixed-content policies, which were not exercised. Do not rely on those browser policies as server authorization. The loopback boundary must not be widened, and mutating routes require an authenticated, origin-restricted control boundary before release.
 
@@ -49,6 +49,8 @@ Dependencies point inward. `bot/index.js` must become a composition shell rather
 Construction must inject the exchange, journal, clock, request-ID source and scheduler. Importing controller, server or domain modules must not open a listener, install signal handlers, load production credentials or reach the network. Keep strategy calculations pure, but validate their outputs and all exposure policy at the application boundary before creating an intent.
 
 Fresh isolated evidence shows why this seam is the first architecture gate. With HTTP and exchange modules intercepted, importing the real `bot/index.js` still attempted the loopback listener, one interval, SIGINT/SIGTERM handlers and initial ticker, order-book and balance reads. An ephemeral server built from the real `bot/server.js` also forwarded all four attacker-origin mutation routes to a fake controller without authentication. These are production-path probes with external boundaries replaced, not a checked-in test suite.
+
+The first implementation slice is deliberately narrow. Reduce `bot/index.js` to composition, move application transitions into `bot/controller.js`, centralize parsed fail-closed policy in `bot/config.js`, and keep route authorization/schema enforcement in `bot/server.js`. `src/App/Main.js` must send the configured non-bundled capability without becoming an authority source. `test/import-safety.test.js` and `test/server.test.js` must prove zero import side effects and zero controller calls for disabled, unauthenticated, wrong-origin, unknown-field or over-cap requests before order-lifecycle work begins.
 
 ## Money and authority model
 
@@ -115,4 +117,4 @@ Frontend `min`, `max` and `step` fields are presentation hints only. The server 
 
 Before unattended or meaningful-capital use, all P0 gates in [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) must pass, followed by P1 money/concurrency review and target dex-trade sandbox/test-account evidence. Local mocks establish containment logic only; they do not establish exchange pagination, finality, fee, cancellation or timeout-after-acceptance semantics.
 
-See [`DEVELOPMENT_REVIEW_2026-09-16.md`](DEVELOPMENT_REVIEW_2026-09-16.md) for the current findings and executed evidence, [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order, and [`ARCHITECTURE_ADDENDUM_2026-09-12.md`](ARCHITECTURE_ADDENDUM_2026-09-12.md) for the unresolved durable-intent versus proven exchange-idempotency decision.
+See [`DEVELOPMENT_REVIEW_2026-09-17.md`](DEVELOPMENT_REVIEW_2026-09-17.md) for the current findings and executed evidence, [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the repair order, and [`ARCHITECTURE_ADDENDUM_2026-09-12.md`](ARCHITECTURE_ADDENDUM_2026-09-12.md) for the unresolved durable-intent versus proven exchange-idempotency decision.
