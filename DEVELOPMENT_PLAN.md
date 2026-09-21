@@ -1,94 +1,70 @@
 # NXS/USDT AMM Development Plan
 
-This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation step must keep the frontend build and bot syntax green and add automated regression coverage.
+This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation batch must keep the frontend build and bot syntax green, add collected regression coverage, deny unexpected network access, and preserve a default-disabled trading boundary.
 
-## Current status — independent review 2026-09-17
+## Current status — independent review 2026-09-21
 
-Source HEAD is `7017929848d4ddef4158d868e2cd4433db09416f`. Since the 2026-09-16 reviewed source (`01038ec26f8e19bb11e4eb11a7b8c1e1a2708257`), only that review's documentation was published. There is no executable, manifest or lockfile delta: `bot/` remains `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. A fresh build, nine syntax checks, dependency-tree checks and root-document links pass; both packages still lack a test script and no CI workflow is tracked. A fresh loopback-fake probe again accepted all four unauthenticated attacker-origin mutations and the million-grid/unknown-key configuration. The offline advisory lookup returned zero but cannot supersede the 2026-09-16 online failures because cache completeness was not established. Every P0 remains open. See the [current review](DEVELOPMENT_REVIEW_2026-09-17.md).
+Reviewed source HEAD is `8880f1e8a3a1800bcf547494bfac65d084b15ba9`, equal to freshly fetched `origin/main` before review publication. Since the 2026-09-17 reviewed HEAD (`7017929848d4ddef4158d868e2cd4433db09416f`), only that review's three documentation files changed. Runtime trees remain `bot/` `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` `eac7280ff4119b667d85fa2be66d3062fc35de58`; no manifest or lockfile changed.
 
-## Next repair batches — containment before order logic
+Fresh execution passed the production build, all nine tracked bot JavaScript syntax checks, and both direct production dependency-tree checks. Both packages still lack a test script and no `.github` workflow exists. Online production audits still fail: root `2` entries (`1` high, `1` low), bot `6` (`3` high, `2` moderate, `1` low). Isolated production-path probes reconfirmed unauthenticated attacker-origin mutation, stale-read placement, absence-based fabricated fills/PnL, missing-ID collapse and false cancellation finalization. A new deterministic barrier execution proved the documented stop race: an accepted order became locally open after stop returned, and the still-running `start()` call installed a post-stop interval. Every P0 remains open. See [`DEVELOPMENT_REVIEW_2026-09-21.md`](DEVELOPMENT_REVIEW_2026-09-21.md).
 
-Keep these batches free of live exchange use and financial-state migration:
+## Mandatory repair order
 
-1. **Batch A — seam and gate.** Reduce `bot/index.js` to composition; add `bot/controller.js` and `bot/config.js`; update root/bot `package.json`; add `test/import-safety.test.js`, `test/network-deny.js` and `.github/workflows/ci.yml`. Inject exchange, scheduler, clock and ID dependencies. **Exit:** importing controller/server modules creates zero listener, timer, signal, credential or network effects, and one root `npm test` command runs from a clean checkout with external access denied.
-2. **Batch B — control policy.** Update `bot/server.js` and `src/App/Main.js` for independent `TRADING_ENABLED=false`, exact origin, non-bundled control capability, strict strategy schemas and hard order/notional/inventory ceilings; add `test/server.test.js`. **Exit:** every disabled, missing/wrong capability, untrusted-origin, unknown-field, fractional-count, million-grid or over-cap request returns 4xx/503 with zero controller/state/exchange calls; only bounded synthetic configuration reaches a fake controller.
-3. **Batch C — evidence and writes.** Update `bot/dextrade.js`, `bot/controller.js` and `bot/state.js`; add `bot/domain/orderLifecycle.js` and read/cancellation/placement fixtures. **Exit:** incomplete reads hold with zero writes/PnL, empty open orders cannot infer fills, every cancellation ID gets a typed result, and the first missing-ID/timeout placement retains unknown exposure and prevents later calls.
+Do not reorder these batches to add trading capability before containment and its collected gate. Do not use live exchange credentials in Batches A-D.
 
-Do not begin restart durability or exact-fill PnL until Batches A-C are green. Then add `bot/journal.js` and crash/await-boundary fixtures to satisfy steps 5-7 below.
+### Batch A — import-safe seam, one gate, default deny (P0 containment)
 
-The 2026-09-16 temporary probes provide exact red fixtures to promote into the gate: importing `bot/index.js` attempted a listener, interval, two signal handlers and three exchange-adapter reads; all four attacker-origin mutation routes returned 200 and invoked the controller; and `numGrids=1000000` plus an unknown key was forwarded unchanged. Keep the fixture boundaries synthetic and network-denying. Do not copy loader interception into the target design; remove the import side effects instead.
+**Change:** reduce `bot/index.js` to composition; add injected `bot/controller.js` and `bot/config.js`; make server construction import-safe; add a root `test` command, `test/network-deny.js`, `test/import-safety.test.js`, and `.github/workflows/ci.yml`. Parse an independent `TRADING_ENABLED` switch as false unless explicitly enabled. Missing control policy or exposure policy keeps mutation disabled before controller construction can reach private exchange methods.
 
-## Ordered repair sequence
+**Exit command:** one documented root `npm test` command runs every collected test from a clean install with real DNS/socket/axios access denied, then CI runs the same command on every push.
 
-### 0. Keep the unsafe boundary contained
+**Exit assertions:** importing controller, server, config and domain modules creates zero listeners, timers, signal handlers, credential reads or network calls; default configuration permits read-only liveness/status only; start/config/rebalance cause zero private calls when enablement, auth/origin or caps are missing. Re-run the 2026-09-21 import probe and require `0` for listener, interval, signal and exchange-read counts.
 
-- Keep real exchange credentials removed and do not run unattended or with meaningful capital. Add a default-deny trading-enable gate independent of credential presence.
-- When explicit enable, authenticated origin/control configuration or exposure caps are absent, mutation requests must fail closed before any private exchange call.
-- **Exit:** a clean/default configuration can serve read-only health UI but every start/config/rebalance path produces zero exchange writes; only a capped disposable test configuration can enable writes.
+### Batch B — authenticated control schemas and one lifecycle queue (P0 containment)
 
-### 1. Establish an isolated test and CI contract
+**Change:** enforce exact configured origin plus a non-bundled control capability on every mutation route; install server-owned strategy schemas and hard per-order, batch, inventory and unresolved-outcome caps. Route scheduled tick, start, stop, config, forced rebalance and shutdown through one controller queue. Stop closes admission first, joins/resolves the active transition, reconciles attributable exposure, and prevents any later interval installation.
 
-- Extract controller construction and dependency injection from listener/process startup. Importing test subjects must not open a port, install signal handlers, load real credentials or call dex-trade.
-- Add `node:test` coverage for strategies, server routes, controller transitions and adapter parsing/signing; use one network-denying command from a clean checkout.
-- Add CI for clean installs in both packages, tests, frontend production build, bot syntax, dependency audit policy and `git diff --check`.
-- **Exit:** `npm test` (or one documented root equivalent) exercises collected tests without network credentials; CI runs it on every push; a fixture that would reach the real adapter fails the test.
+**Exit tests:** `test/server.test.js` rejects disabled, missing/wrong capability, attacker origin, unknown field, fractional count, `numGrids=1000000`, and over-cap notional with 4xx/503 and exactly zero controller/state/exchange calls. `test/controller-races.test.js` places deterministic barriers before and after every exchange await; a stop during accepted placement must not return terminal until the order is either positively cancelled/closed or visibly held, no order may appear open after a terminal stop, and no timer/write may start after admission closes.
 
-### 2. Contain the control plane and strategy inputs
+### Batch C — complete typed reads before any financial write (P0)
 
-- Require an explicit control credential on every mutating route and replace wildcard CORS with an exact configured origin policy compatible with the Nexus Wallet module. Fail startup or keep mutations disabled when the credential/origin policy is absent.
-- Validate strategy names and params against server-owned schemas: reject unknown keys, below-min/above-max values, non-integer count fields and values above explicit order/loop ceilings. Enforce per-order, batch and account-exposure caps independently of strategy parameters.
-- Add request body and concurrent-command tests; do not rely on browser input attributes.
-- **Exit:** requests from an untrusted origin, with missing/wrong credentials, or containing `numGrids=1000000`, fractional count fields, unknown params or over-cap notional return 4xx and cause no controller call, state change or exchange call. The configured wallet origin with the right credential succeeds only inside explicit exposure caps.
+**Change:** return typed evidence for ticker/book, balances, open orders and fill/closed history: pair, fetched-at/freshness, validated schema, canonical IDs, cursor/range and explicit completeness. Remove last-trade fallback for quoting and cached-balance authorization. Open-order absence never implies fill or cancellation.
 
-### 3. Make read uncertainty stop trading
+**Exit tests:** `test/read-evidence.test.js` injects transport failure, malformed envelope/row, wrong pair, stale/crossed book, missing required balance, non-monotonic/incomplete pagination and page-budget exhaustion through the actual controller. Every case records an operator-visible hold and causes zero cancellation, placement or PnL mutation. The captured empty-open-list case must leave both orders unresolved and PnL exactly unchanged; failed balance refreshes must permit zero placements despite a populated cached snapshot.
 
-- Introduce typed results for ticker/order book, balances, open orders and closed/fill history, including schema validation, timestamps, stable pair filtering and complete-pagination evidence.
-- Require fresh order-book and balance evidence before cancellation/placement. Do not fall back to last trade for quoting and do not reuse cached balances after refresh failure.
-- Treat transport errors, malformed envelopes/records and page-budget exhaustion as a held state that remains visible through status.
-- **Exit:** injected order-book, balance and open-order transport failures; malformed/empty-wrong-schema responses; inverted books; and incomplete/page-budget-exhausted scans produce zero cancellation, placement and fabricated PnL events and expose a reasoned hold. In the captured regression, an empty open-order list must not turn four orders into fills or book `45 USDT` PnL, and two failed balance reads must not permit four stale-balance placements.
+### Batch D — attributable writes, exact cancellation cardinality, durable ambiguity (P0)
 
-### 4. Make writes attributable and replacement-safe
+**Change:** choose the durable-intent journal path or first prove target dex-trade idempotent client references plus direct lookup. Freeze pair, side, quantized price/volume, notional and unique request reference before submission. Persist/reserve intent before calling the exchange. Missing ID, malformed success, timeout or interruption becomes `outcome_unknown`, aborts the batch and blocks replacement. Cancellation returns one typed result per requested ID: `confirmed_cancelled`, `still_open` or `outcome_unknown`.
 
-- Return one typed cancellation result for every requested order ID. Do not convert best-effort batch completion into universal cancellation.
-- Resolve the durability decision: add a minimal durable placement-intent journal, or prove that dex-trade supplies a unique idempotent client reference and direct lookup sufficient for crash recovery. An in-memory intent is not sufficient.
-- Freeze side, quantized price/volume, notional and request reference before submission. Require a validated canonical exchange ID after success; serialize reference generation and reject collisions.
-- A timeout, malformed response or missing ID becomes `outcome_unknown`, reserves the possible exposure and aborts the remaining placement batch. Resolve it by positive attributable exchange evidence before retry, replacement or operator disposition.
-- **Exit:** crash/fault injection before intent, after intent, after remote acceptance, before identity recording, during restart, on duplicate invocation and on partial cancellation proves exactly one attributable remote action, zero unauthorized later-batch/replacement orders and no terminal local state without exact evidence. The captured missing-ID regression must stop after the first ambiguous response rather than make four calls and collapse them into `managedOrders.undefined`; one successful result for three requested cancellations must leave two held rather than mark all three cancelled.
+**Exit tests:** `test/order-lifecycle.test.js` fault-injects before intent, after intent/before call, after remote acceptance/before parse, after response/before identity persistence, after persistence/before finalization, restart and duplicate invocation. Every run proves one attributable remote action, retained unresolved exposure and no later-batch/replacement call. `test/cancellation.test.js` requires result cardinality equal to requested IDs; one success for three IDs may finalize only that one. A `{}` placement response must make exactly one call, create no `undefined` key and enter a durable held state.
 
-### 5. Serialize lifecycle transitions and stop safely
+### Batch E — startup adoption, exact fills and accounting (P0/P1)
 
-- Use one controller transition queue/lock for tick, start, stop, config and forced rebalance; keep the existing no-overlapping-ticks guard as defense in depth.
-- Define stop semantics for a write already in flight and reconcile its outcome before reporting all exposure cancelled.
-- Serialize public/private request scheduling so concurrent callers cannot violate rate limits or reuse timing assumptions.
-- **Exit:** deterministic barriers at every await point prove stop/config/rebalance races cannot orphan an accepted order, place after a confirmed stop, exceed configured request spacing or report a false terminal state.
+**Change:** startup begins held and completely enumerates attributable open, closed, partial and unknown orders before first placement. Consume positive fill evidence with exact executed base/quote quantity, price, fee amount/asset and identity. Use explicit decimal or integer-scaled values, target symbol metadata and quantize before minimum/balance/cap checks.
 
-### 6. Reconcile restart and exact fills
+**Exit tests:** crash/restart fixtures cover live owned, unknown/unowned, partial, cancelled and filled orders without duplicate submission or fabricated terminal state. Unequal-decimal, rounding-boundary, partial-fill, multi-fill and fee-currency fixtures assert exact expected balances, reservations and realized/unrealized PnL. A deliberate duplicate/overpayment produces a positive reconciliation discrepancy; zero checked entities or incomplete history is unhealthy, never green.
 
-- Startup begins held and completely enumerates attributable open, closed and partially filled orders before the first placement.
-- Replace absence-based fill inference with exact execution quantity, price, fee, side and exchange identity evidence. Preserve unresolved liabilities.
-- Keep noncritical dashboard state in memory. If exchange idempotency/lookup cannot recover a write accepted across a process crash, approve a narrowly scoped durable intent journal; otherwise unattended operation remains unsupported.
-- **Exit:** restart fixtures for live owned, unknown/unowned, partial, cancelled and filled orders neither duplicate orders nor fabricate fills. Target sandbox/test-account evidence proves pagination and each terminal transition.
+### Batch F — target exchange semantics, dependencies and operations (P1/P2)
 
-### 7. Rebuild PnL and remediate dependencies
+**Change:** only after A-E pass, use a capped disposable dex-trade sandbox/test account to establish pagination, pair filtering, symbol precision/minimums, fee fields, cancellation finality, idempotency/direct lookup and timeout-after-acceptance behavior. Upgrade dependencies only under the complete gate; document credentials, capabilities, held-state recovery, safe stop and incident response.
 
-- Consume target symbol metadata, quantize price/volume before minimum, balance and exposure checks, and derive inventory and realized/unrealized PnL from exact fill events using explicit decimal/base-unit policy and fee currency handling.
-- Upgrade audited dependencies only under the complete behavior/build/Nexus Wallet compatibility gate.
-- **Exit:** unequal-decimal, partial-fill, multi-fill, fee and rounding fixtures assert exact expected values; `npm audit --omit=dev` meets the documented release policy in both packages; production module installation and polling/control smoke pass in the target wallet.
+**Exit:** recorded capped test-account cases prove each external semantic that mocks cannot. `npm audit --omit=dev` meets the documented policy in both packages; build, collected tests and Nexus Wallet installation/polling/control smoke remain green. No production-readiness claim is allowed if the exchange lacks a proven recovery mechanism for ambiguous submissions.
 
-## Status table
+## Release-gate status
 
 | Priority | Gate | Executable exit criterion | Status |
 |---|---|---|---|
-| P0 | Default-deny containment | Missing enable/auth/origin/cap configuration permits zero exchange writes | **Not implemented** |
-| P0 | Test/CI contract | One network-denying command tests controller, adapter, strategy and HTTP behavior on every push | **Not implemented** |
-| P0 | Control authorization and input limits | Untrusted origin/credential and out-of-schema requests are rejected with zero side effects | **Not implemented** |
-| P0 | Fresh read evidence | Failed/malformed/incomplete market, balance or order enumeration causes an operator-visible hold and zero writes | **Not implemented** |
-| P0 | Durable attributable cancellation/placement | Ambiguous writes survive restart, retain exposure and cannot trigger later-batch/retry/replacement writes without positive evidence | **Not implemented** |
-| P0 | Serialized lifecycle and safe stop | Fault-injected command/tick races cannot orphan or duplicate orders | **Not implemented** |
-| P0 | Restart reconciliation | Startup adopts or safely holds attributable exchange exposure before placement | **Not implemented** |
-| P1 | Exact fill/fee PnL | Fill-level quantities, prices, decimals and fees produce deterministic exact results | **Not implemented** |
-| P1 | Live exchange semantics | Sandbox/test-account cases prove pagination, partial fill, cancellation and timeout recovery | **Not implemented** |
-| P2 | Dependency remediation | Audits meet policy with build, behavior and Nexus Wallet compatibility green | **Deferred / compatibility-gated** |
-| P2 | Operational runbook | Credentials, control auth, held-state recovery, stop and incident response are documented and exercised | **Partial** |
+| P0 | Default-deny containment | Missing enable/auth/origin/cap configuration permits zero private exchange writes | **Not implemented** |
+| P0 | Test/CI contract | One network-denying collected command covers controller, adapter, strategy and HTTP behavior on every push | **Not implemented** |
+| P0 | Control authorization/input limits | Untrusted origin/credential and out-of-schema/over-cap requests are rejected with zero effects | **Not implemented** |
+| P0 | Serialized lifecycle/safe stop | Await barriers cannot produce an open order or interval after terminal stop | **Not implemented; failure executed 2026-09-21** |
+| P0 | Fresh complete read evidence | Failed/malformed/stale/incomplete reads cause a visible hold and zero writes/PnL | **Not implemented** |
+| P0 | Durable attributable writes | Ambiguous writes survive restart, retain exposure and prohibit later-batch/retry/replacement | **Not implemented** |
+| P0 | Exact cancellation cardinality | Every requested ID has a typed result; only positive evidence finalizes it | **Not implemented** |
+| P0 | Restart reconciliation | Startup adopts or holds all attributable/unknown exposure before placement | **Not implemented** |
+| P1 | Exact fill/fee accounting | Fill-level quantities, prices, decimals and fees produce deterministic exact results | **Not implemented** |
+| P1 | Live exchange semantics | Capped sandbox/test-account cases prove pagination, finality and ambiguity recovery | **Not implemented** |
+| P2 | Dependency remediation | Audits meet policy with build, tests and wallet compatibility green | **Deferred / compatibility-gated** |
+| P2 | Operational runbook | Credentials, control capability, holds, stop and incident response are exercised | **Partial** |
 
-**Release gate:** do not use meaningful capital or unattended operation until every P0 item passes, P1 money behavior has independent review, and live-boundary evidence has been collected with capped disposable test exposure.
+**Release decision:** do not use meaningful capital or unattended operation until every P0 item passes, P1 money behavior receives independent review, and capped live-boundary evidence is complete.
