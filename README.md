@@ -14,8 +14,10 @@ Automated Market Maker dashboard and trading bot for the **NXS/USDT** pair on [d
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the current/target boundary,
 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for ordered release gates, and
-[`DEVELOPMENT_REVIEW_2026-09-03.md`](DEVELOPMENT_REVIEW_2026-09-03.md) for the
+[`DEVELOPMENT_REVIEW_2026-09-28.md`](DEVELOPMENT_REVIEW_2026-09-28.md) for the
 latest independent evidence.
+
+> **Safety status:** the current implementation is unsafe for unattended trading or meaningful capital. It has no collected test/CI gate or durable financial journal; failed reads can authorize cached balances, open-list absence fabricates fills, ambiguous writes are not restart-safe, cancellation evidence is discarded, lifecycle stop can race placement, and raw admission can be lower than the rounded wire amount. Keep financial writes disabled until the P0 acceptance matrices in `DEVELOPMENT_PLAN.md` pass. The quick-start commands below describe current mechanics, not production approval.
 
 ---
 
@@ -215,11 +217,11 @@ All endpoints return `{ ok: boolean, data?, error?, message? }`.
 ## Key design decisions
 
 - **Polling over WebSockets**: the frontend polls the bot every 4 seconds via HTTP. This keeps the bot stateless with respect to clients and avoids WebSocket complexity in the Nexus module sandbox.
-- **In-memory state**: all bot state lives in a shared JS object (`bot/state.js`). No database. State is lost on restart — this is intentional for a trading bot that reconciles from the exchange on each tick.
+- **Current in-memory state is a release blocker**: all bot state lives in a shared JS object (`bot/state.js`) and is lost on restart; current ticks do not reconstruct attributable intent or authoritative terminal evidence. The target architecture keeps ordinary dashboard projections in memory but requires a dedicated transactional safety journal for financial intent, reservations, remote identities, ambiguous outcomes and operator disposition.
 - **Rate limiting**: the dex-trade client enforces 10 req/s for public endpoints and 5 req/s for private endpoints to stay within API limits.
 - **Tick guard**: only one tick can run at a time. If a tick takes longer than 15 s, the next one is skipped rather than overlapping (prevents double-placing orders).
 - **Balance validation**: before placing each order, the bot checks available balance and skips orders that would exceed it, logging a warning.
-- **Graceful shutdown**: SIGINT/SIGTERM cancel all open managed orders before exiting.
+- **Current shutdown is best effort, not graceful**: SIGINT/SIGTERM request cancellation, but per-ID failures are discarded and in-flight placement can complete after stop. Terminal safe-stop semantics remain a P0 gate.
 - **Order pruning**: closed orders are pruned to a cap of 200 to prevent unbounded memory growth.
 
 ---

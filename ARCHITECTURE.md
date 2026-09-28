@@ -15,11 +15,11 @@ Loopback Express control/status API (:17442)
 
 The frontend is an operator console, not the source of trading truth. The bot owns strategy selection, order placement, cancellation, reconciliation and the in-memory status snapshot. NXS is traded as an exchange asset here; this implementation does not submit transactions through the Nexus node API.
 
-### Current source snapshot — 2026-09-25
+### Current source snapshot — 2026-09-28
 
-Reviewed source HEAD is `e2e849cafd767ccd306b4144da2dcd5f67be8460` on `main`, equal to the locally recorded `origin/main` (`0` ahead, `0` behind). Its only delta from the 2026-09-23 reviewed source (`64185101218bf3b8b47666af07d78720b25cc9f7`) is `ARCHITECTURE.md`, `DEVELOPMENT_PLAN.md` and `DEVELOPMENT_REVIEW_2026-09-23.md`; `bot/` remains tree `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. No runtime, manifest, lockfile, test or CI repair landed. GitHub reported no workflow run for this exact SHA.
+Reviewed source HEAD is `0040f42736f61dead2a612b4ed9295816ecd093a` on `main`, equal to the locally recorded `origin/main` (`0` ahead, `0` behind). Its only delta from the 2026-09-25 reviewed source (`e2e849cafd767ccd306b4144da2dcd5f67be8460`) is `ARCHITECTURE.md`, `DEVELOPMENT_PLAN.md` and `DEVELOPMENT_REVIEW_2026-09-25.md`; `bot/` remains tree `cfe5e308bbc01fc5b55329bc4378ac449720a70d` and `src/` remains `eac7280ff4119b667d85fa2be66d3062fc35de58`. No runtime, manifest, lockfile, test or CI repair landed. GitHub reported no workflow run for this exact SHA.
 
-The untracked `vision.md` reviewed at SHA-256 `733a95bbb8d59d0e55acebe486a3bbbca82b70f89d66bbe0a3b50c333685c5d0` is context, not part of source HEAD. Its operator-custody, no-underwriting, bounded-authority, exact-money, reconciliation-first and transparent-evidence doctrine is adopted here as a design constraint. That does not make the untracked file publishable or implemented. Every P0 release blocker remains open; fresh evidence is in [`DEVELOPMENT_REVIEW_2026-09-25.md`](DEVELOPMENT_REVIEW_2026-09-25.md).
+The untracked `vision.md` reviewed at SHA-256 `733a95bbb8d59d0e55acebe486a3bbbca82b70f89d66bbe0a3b50c333685c5d0` is context, not part of source HEAD. Its operator-custody, no-underwriting, bounded-authority, exact-money, reconciliation-first and transparent-evidence doctrine is adopted here as a design constraint. That does not make the untracked file publishable or implemented. Every P0 release blocker remains open; fresh evidence is in [`DEVELOPMENT_REVIEW_2026-09-28.md`](DEVELOPMENT_REVIEW_2026-09-28.md).
 
 `bot/index.js` binds the API to `127.0.0.1`, which reduces network exposure but is not authorization. `bot/server.js` currently returns `Access-Control-Allow-Origin: *` and has no control token. The server therefore grants arbitrary origins access to start, stop, configuration and rebalance routes; actual webpage reachability also depends on the browser's private-network and mixed-content policies, which were not exercised. Do not rely on those browser policies as server authorization. The loopback boundary must not be widened, and mutating routes require an authenticated, origin-restricted control boundary before release.
 
@@ -31,6 +31,14 @@ The untracked `vision.md` reviewed at SHA-256 `733a95bbb8d59d0e55acebe486a3bbbca
 - `bot/state.js`: ephemeral process state; restart loses managed-order and PnL history.
 - `bot/strategies/`: pure target-order generation behind a common strategy contract.
 - `bot/dextrade.js`: all exchange transport, signing and rate limiting.
+
+## Binding durability decision and instruction conflict
+
+The durable-intent path is selected. Unattended or restartable financial writes require a dedicated transactional safety journal for immutable placement/cancellation intent, exact quantized terms and reservations, remote identities, outcome-unknown state, recovery evidence and operator disposition. Ordinary market/status/UI projections may remain in memory; the safety journal is not optional application state and may not be replaced by process memory or an ad-hoc JSON snapshot.
+
+This decision conflicts with the current `CLAUDE.md` statement that all bot state must remain in memory and no database may be added. For financial state, that statement is superseded by this architecture and [`ARCHITECTURE_ADDENDUM_2026-09-12.md`](ARCHITECTURE_ADDENDUM_2026-09-12.md). The attempted documentation correction was blocked by protected-file approval during the 2026-09-28 review, so implementation must treat the conflict itself as a gate: a maintainer must approve the instruction correction and an audited transactional adapter before Batch D begins. If either approval is absent, trading stays default-disabled; the fallback is not an in-memory journal and not a production-readiness claim.
+
+The storage engine is deliberately not certified by this documentation review. The review host's Node `v22.23.2` exposes `node:sqlite`, but emits an `ExperimentalWarning`; host availability is not a production storage contract. Batch D must select and review one adapter, prove atomic commit/rollback, durable restart behavior, corruption handling, backup/restore and packaging on every supported runtime, and record the decision. Failure of the journal to open, migrate, lock, write, sync or reread closes write admission.
 
 ## Target clean architecture
 
@@ -110,6 +118,23 @@ Ordinary dashboard state can remain in memory under the existing no-database con
 The scheduled tick guard does not serialize HTTP stop/config/rebalance calls with a tick already in flight. The 2026-09-25 isolated barrier probe executed the concrete failure: `start()` was paused inside `createLimitOrder()`, `stop(true)` found no managed ID and returned `stopped`, then the accepted order was recorded `open`; after the original tick returned, `start()` installed another interval. A single controller transition queue must cover idle prefetch, start, stop, configuration, forced rebalance, reconciliation, cancellation and placement. Stop must close admission, join or resolve an in-flight transition, reconcile attributable exposure, and only then report terminal state. The composition shell must not install a timer after admission has closed.
 
 The queue requires explicit linearization semantics, not merely a mutex around route handlers. Every start creates a session generation. Stop first atomically changes admission from `open` to `closing`, invalidates that generation and cancels future timer admission. It then joins the active transition. After every awaited exchange call, the transition must re-check its generation before any further write. If a placement may have been accepted, stop must persist/recover its identity and positively cancel or classify it as a visible unresolved hold. Terminal `stopped` means no admitted transition can install a timer or issue another private call and every attributable order is terminal; otherwise the truthful result is a stopped/disabled **held** state with quantified unresolved exposure, not success.
+
+The queue serializes only one controller process. Before any private call, the journal must also establish one active writer through an OS-enforced exclusive lock or a transactional lease with fencing token. A second process, stale lease holder, restored copy or independently launched bot must be unable to submit, cancel, advance recovery or overwrite disposition under an old fence. Loss of ownership after intent commit changes admission to held; it never authorizes a second submission. Multi-process tests must start two real Node processes against the same journal and prove one writer, one remote attempt, monotonic revision/fence checks and read-only status from the loser.
+
+`POST /api/stop` currently accepts `cancelOrders: false`. Fresh 2026-09-28 execution placed two orders, skipped cancellation, returned `status: stopped`, and retained both local rows as `open`. The target protocol may offer **disable-and-hold-open-orders** as a separate explicit command, but it may not call that state terminal `stopped`. A terminal stop always closes admission, resolves or holds every attributable order, and truthfully reports residual exposure. The API must reject ambiguous booleans and unknown stop modes through a closed schema.
+
+### Admission-state contract
+
+| State | New private writes | Read-only refresh | Required transition evidence |
+|---|---:|---:|---|
+| `disabled` | No | Optional | Complete policy and explicit operator enablement are absent or false. |
+| `recovering` | Recovery lookups only | Yes | Journal opened and exclusively owned; every non-terminal intent is being enumerated. |
+| `open` | Yes, through one admitted transition | Yes | Policy, writer fence, journal health, fresh complete exchange evidence and exposure capacity are all valid. |
+| `closing` | No new work; resolution/cancellation only | Yes | Generation invalidated; active transition joined; outstanding intents retained. |
+| `held` | No | Yes | One or more quantified unresolved outcomes, incomplete reads, journal faults, fence loss or policy breaches remain. |
+| `stopped` | No | Yes | No admitted work/timer can restart, and every attributable order is positively terminal with zero unresolved reservation. |
+
+No route or scheduler callback may jump directly from `disabled`, `recovering`, `closing` or `held` to a financial write. Only a successful, journaled transition into `open` permits submission.
 
 HTTP authorization is a separate adapter concern. CORS headers are browser response policy, not authentication. Mutation must be default-disabled, require an exact configured origin and a high-entropy capability supplied at runtime (never bundled in `dist/app.js`), and reject a missing/duplicate/malformed credential before parsing or invoking controller work. Define an explicit non-browser operator path rather than treating absent `Origin` as trusted. Read routes must expose only the intended projection; logs and strategy/status fields should be reviewed for credential or sensitive exchange-data leakage. Rate limits and body-size limits supplement but do not replace authorization.
 
