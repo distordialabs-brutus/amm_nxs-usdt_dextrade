@@ -6,7 +6,7 @@
 
 **Verdict: unsafe for unattended trading or meaningful capital.** `HEAD` equals the requested baseline, so there is no committed or working-tree runtime delta to accept after it. The only baseline-to-working-tree tracked changes at review start were documentation. Runtime source, manifests and lockfiles are unchanged; both packages still lack a test command; no CI workflow is tracked; and every P0 release gate remains open.
 
-No live dex-trade or Nexus API request was made. The focused probe used synthetic credentials, replaced exchange/process boundaries and opened only one ephemeral `127.0.0.1` listener. It created or cancelled no exchange order and changed no account, credential, runtime source, dependency, Git index or remote state. No staging, reset, clean, stash, commit or push was performed.
+No live dex-trade or Nexus API request was made. The focused probe used synthetic credentials, replaced exchange/process boundaries and opened only one ephemeral `127.0.0.1` listener. It created or cancelled no exchange order and changed no account, credential, runtime source or dependency. The assessment phase did not stage, reset, clean, stash, commit or push the original checkout. Subsequent documentation-only publication used a detached worktree; the original checkout and its index were preserved.
 
 ## Baseline and preserved working tree
 
@@ -40,7 +40,7 @@ Toolchain: Node `v22.23.2`, npm `10.9.8`.
 | Root and bot `npm audit --offline --omit=dev` | **PASS as cache-only checks** — each reported `found 0 vulnerabilities`; this is not current registry evidence. |
 | Scratch scenarios `attacker-origin-control`, `import-side-effects`, `failed-balance-authority`, `negative-open-inference`, `missing-placement-identity`, `cancellation-cardinality`, `stop-placement-race`, `restart-state-loss`, `stop-without-cancel`, `exact-unit-mismatch` | **PASS as defect reproductions** — `10/10`, `0` harness failures. Passing means the unsafe behavior was reproduced, not that a safety gate passed. |
 | Live exchange/Nexus semantics | **NOT RUN** by scope and repair order. |
-| Exact-head publication CI | **NOT RUN** — no tracked workflow and no commit/push requested. |
+| Exact-head publication CI | **ABSENT** — no tracked workflow; documentation publication is not a runtime acceptance gate. |
 
 Scratch evidence:
 
@@ -145,4 +145,4 @@ These controls do not establish production readiness.
 | `nxs_package.json` | `dbf72e295506511f268c99542117a3fa677875b8796a04b70a998e54ed7cbcbe` |
 | untracked `vision.md` | `733a95bbb8d59d0e55acebe486a3bbbca82b70f89d66bbe0a3b50c333685c5d0` |
 
-The hashes identify the unchanged implementation reviewed before these documentation edits. This evaluation is an uncommitted working-tree artifact.
+The hashes identify the unchanged implementation reviewed before these documentation edits. This dated evaluation records assessment-phase evidence; its publication changes documentation only and does not close any runtime acceptance gate.
