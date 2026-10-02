@@ -14,7 +14,7 @@ Automated Market Maker dashboard and trading bot for the **NXS/USDT** pair on [d
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the current/target boundary,
 [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for ordered release gates, and
-[`DEVELOPMENT_REVIEW_2026-09-28.md`](DEVELOPMENT_REVIEW_2026-09-28.md) for the
+[`DEVELOPMENT_REVIEW_2026-10-02.md`](DEVELOPMENT_REVIEW_2026-10-02.md) for the
 latest independent evidence.
 
 > **Safety status:** the current implementation is unsafe for unattended trading or meaningful capital. It has no collected test/CI gate or durable financial journal; failed reads can authorize cached balances, open-list absence fabricates fills, ambiguous writes are not restart-safe, cancellation evidence is discarded, lifecycle stop can race placement, and raw admission can be lower than the rounded wire amount. Keep financial writes disabled until the P0 acceptance matrices in `DEVELOPMENT_PLAN.md` pass. The quick-start commands below describe current mechanics, not production approval.
