@@ -1,5 +1,11 @@
 # NXS/USDT AMM Development Plan
 
+## Governing vision and portfolio traceability
+
+Read [the repository vision](vision.md) and [Distordia alignment/dependency map](docs/DISTORDIA_ALIGNMENT.md) before assigning work. Authority is master Distordia strategy/customer evidence → portfolio roadmap/strategy decisions → repository vision → this development plan → tasks/code/tests/external evidence and human release.
+
+**Portfolio purpose:** O4 bounded operator risk and reconcilable exchange action; optional ecosystem-enabling experiment. Operator-controlled exchange accounts and explicitly limited authority; truthful held exposure and exact fills/fees. Not an on-chain AMM, a pooled treasury or Distordia underwriting. The alignment map supplies customer-evidence qualification, batch ownership, upstream prerequisites and human gates. Each material task must name those fields alongside its exact production paths and collected acceptance tests. This documentation alignment changes no runtime, test result or release status; dated evidence below remains evidence for its stated snapshot only.
+
 This plan turns [`ARCHITECTURE.md`](ARCHITECTURE.md) into ordered, reviewable gates. Every implementation batch must keep the frontend build and bot syntax green, add collected regression coverage, deny unexpected network access, and preserve a default-disabled trading boundary.
 
 ## Current status — independent review 2026-10-02
@@ -9,6 +15,11 @@ Reviewed source HEAD and the requested baseline are both `7fb784ac7f7f1d392751b9
 Fresh offline execution passed the production frontend build, all nine tracked bot JavaScript syntax checks, both direct production dependency-tree checks and both cache-only audits. Both packages still lack a test script; no tests or `.github` workflow are tracked. A fresh ten-scenario production-path probe reconfirmed attacker-origin mutation, import side effects, placement after all balance refreshes failed, absence-based fabricated fills/PnL, missing-ID collapse, false cancellation finalization, in-memory restart loss, the stop/placement race, false `stop(false)` terminal state and raw/wire amount mismatch. Import still starts an unsynchronized idle prefetch that can overlap start. Every P0 remains open. See [`DEVELOPMENT_REVIEW_2026-10-02.md`](DEVELOPMENT_REVIEW_2026-10-02.md).
 
 The untracked `vision.md` reviewed at SHA-256 `733a95bbb8d59d0e55acebe486a3bbbca82b70f89d66bbe0a3b50c333685c5d0` adds binding direction for this plan: preserve operator custody, make no underwriting claim, enforce a loss limit as well as order/exposure limits, fail closed under uncertain evidence, and publish inspectable release evidence. Treat it as context only until separately tracked by its owner; do not stage it with an implementation batch.
+
+**Vision publication qualification:** the untracked/context-only description above
+belongs to the October 2 review snapshot. This strategy-alignment publication
+explicitly includes the reviewed `vision.md` with the portfolio authority link;
+it changes no runtime, trading permission or historical review evidence.
 
 ## Next coder handoff — start here, do not skip ahead
 

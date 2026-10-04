@@ -1,5 +1,11 @@
 # NXS/USDT AMM Architecture
 
+## Governing vision and portfolio traceability
+
+Read [the repository vision](vision.md) and [Distordia alignment/dependency map](docs/DISTORDIA_ALIGNMENT.md) before assigning work. Authority is master Distordia strategy/customer evidence → portfolio roadmap/strategy decisions → repository vision → this architecture → tasks/code/tests/external evidence and human release.
+
+**Portfolio purpose:** O4 bounded operator risk and reconcilable exchange action; optional ecosystem-enabling experiment. Operator-controlled exchange accounts and explicitly limited authority; truthful held exposure and exact fills/fees. Not an on-chain AMM, a pooled treasury or Distordia underwriting. The alignment map supplies customer-evidence qualification, batch ownership, upstream prerequisites and human gates. Each material task must name those fields alongside its exact production paths and collected acceptance tests. This documentation alignment changes no runtime, test result or release status; dated evidence below remains evidence for its stated snapshot only.
+
 ## Purpose and current boundary
 
 This repository contains two independently packaged processes:
