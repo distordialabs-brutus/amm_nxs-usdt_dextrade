@@ -2,6 +2,8 @@
 
 ## Decision
 
+> **Current source qualification:** this dated evidence remains scoped to `7fb784ac7f7f1d392751b9984f6be5917d5370c9`. The published documentation line now ends at remote tip `916aec034fccb7fbc19b2df0262c089ee0f14cc3`. Local-only `e0ad95cd7bb48dddd265b8771a0d72ebca8722b2` is a divergent sibling from the same merge base, not an ahead commit and not published evidence. Both retain unchanged runtime trees (`bot/` `cfe5e308bbc01fc5b55329bc4378ac449720a70d`, `src/` `eac7280ff4119b667d85fa2be66d3062fc35de58`). A later review found no maintained test script or CI and was approval-blocked from a composite fresh build/syntax/test probe; no new build pass is implied. Parse-only checks of `bot/index.js`, `bot/server.js`, and `bot/dextrade.js` passed, while both `npm test` invocations reported a missing script. Current architecture and repair order are in `ARCHITECTURE.md` and `DEVELOPMENT_PLAN.md`.
+
 **Reviewed source and requested baseline:** `7fb784ac7f7f1d392751b9984f6be5917d5370c9` on `main`.
 
 **Verdict: unsafe for unattended trading or meaningful capital.** `HEAD` equals the requested baseline, so there is no committed or working-tree runtime delta to accept after it. The only baseline-to-working-tree tracked changes at review start were documentation. Runtime source, manifests and lockfiles are unchanged; both packages still lack a test command; no CI workflow is tracked; and every P0 release gate remains open.
